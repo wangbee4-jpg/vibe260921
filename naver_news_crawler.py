@@ -1,12 +1,15 @@
 """네이버 검색 결과(반도체)에서 뉴스 기사 제목/링크를 수집하고, 각 기사 본문을 크롤링한다.
 
-설치: pip install requests beautifulsoup4
+설치: pip install requests beautifulsoup4 openpyxl
 실행: python naver_news_crawler.py
 """
 import time
 
 import requests
 from bs4 import BeautifulSoup
+from openpyxl import Workbook
+from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
+from openpyxl.styles import Font
 
 SEARCH_URL = (
     "https://search.naver.com/search.naver"
@@ -60,6 +63,28 @@ def get_article_body(url):
     for tag in body.select("script, style, .img_desc, .end_photo_org"):
         tag.decompose()
     return body.get_text("\n", strip=True)
+
+
+def save_to_excel(rows, path):
+    """rows: (제목, 링크, 본문) 목록을 엑셀 파일로 저장한다."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "뉴스"
+    ws.append(["번호", "제목", "링크", "본문"])
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+
+    def clean(text):
+        # 엑셀이 허용하지 않는 제어문자 제거, 셀 최대 길이(32767자) 제한
+        return ILLEGAL_CHARACTERS_RE.sub("", text)[:32000]
+
+    for i, (title, link, body) in enumerate(rows, 1):
+        ws.append([i, clean(title), link, clean(body)])
+    ws.column_dimensions["B"].width = 60
+    ws.column_dimensions["C"].width = 50
+    ws.column_dimensions["D"].width = 100
+    ws.freeze_panes = "A2"
+    wb.save(path)
 
 
 def main():
